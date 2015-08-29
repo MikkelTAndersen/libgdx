@@ -406,16 +406,6 @@ public class FreeTypeFontGenerator implements Disposable {
 			}
 		}
 
-		// Set space glyph.
-		Glyph spaceGlyph = data.getGlyph(' ');
-		if (spaceGlyph == null) {
-			spaceGlyph = new Glyph();
-			spaceGlyph.xadvance = (int)data.spaceWidth;
-			spaceGlyph.id = (int)' ';
-			data.setGlyph(' ', spaceGlyph);
-		}
-		if (spaceGlyph.width == 0) spaceGlyph.width = (int)(spaceGlyph.xadvance + data.padRight);
-
 		if (stroker != null && !incremental) stroker.dispose();
 
 		// Generate kerning.
@@ -445,6 +435,16 @@ public class FreeTypeFontGenerator implements Disposable {
 			data.regions = new Array();
 			packer.updateTextureRegions(data.regions, parameter.minFilter, parameter.magFilter, parameter.genMipMaps);
 		}
+
+		// Set space glyph.
+		Glyph spaceGlyph = data.getGlyph(' ');
+		if (spaceGlyph == null) {
+			spaceGlyph = new Glyph();
+			spaceGlyph.xadvance = (int)data.spaceWidth;
+			spaceGlyph.id = (int)' ';
+			data.setGlyph(' ', spaceGlyph);
+		}
+		if (spaceGlyph.width == 0) spaceGlyph.width = (int)(spaceGlyph.xadvance + data.padRight);
 
 		return data;
 	}
@@ -600,6 +600,7 @@ public class FreeTypeFontGenerator implements Disposable {
 		Stroker stroker;
 		PixmapPacker packer;
 		Array<Glyph> glyphs;
+		private boolean dirty;
 
 		@Override
 		public Glyph getGlyph (char ch) {
@@ -612,6 +613,7 @@ public class FreeTypeFontGenerator implements Disposable {
 				setGlyph(ch, glyph);
 				setGlyphRegion(glyph, regions.get(glyph.page));
 				glyphs.add(glyph);
+				dirty = true;
 
 				if (parameter.kerning) {
 					Face face = generator.face;
@@ -634,6 +636,10 @@ public class FreeTypeFontGenerator implements Disposable {
 		public void getGlyphs (GlyphRun run, CharSequence str, int start, int end) {
 			if (packer != null) packer.setPackToTexture(true); // All glyphs added after this are packed directly to the texture.
 			super.getGlyphs(run, str, start, end);
+			if (dirty) {
+				dirty = false;
+				packer.updateTextureRegions(regions, parameter.minFilter, parameter.magFilter, parameter.genMipMaps);
+			}
 		}
 
 		@Override
