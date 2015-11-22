@@ -16,6 +16,8 @@
 
 package com.badlogic.gdx.graphics.glutils;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Application.ApplicationType;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
@@ -59,10 +61,15 @@ public class FrameBuffer extends GLFrameBuffer<Texture> {
 
 	@Override
 	protected Texture createColorTexture () {
-		int glFormat = Pixmap.Format.toGlFormat(format);
-		int glType = Pixmap.Format.toGlType(format);
-		GLOnlyTextureData data = new GLOnlyTextureData(width, height, 0, glFormat, glFormat, glType);
-		Texture result = new Texture(data);
+		Texture result = null;
+		if (!ApplicationType.WebGL.equals(Gdx.app.getType())) {
+			int glFormat = Pixmap.Format.toGlFormat(format);
+			int glType = Pixmap.Format.toGlType(format);
+			GLOnlyTextureData data = new GLOnlyTextureData(width, height, 0, glFormat, glFormat, glType);
+			result = new Texture(data);
+		} else {
+			result = new Texture(width, height, format);
+		}
 		result.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 		result.setWrap(TextureWrap.ClampToEdge, TextureWrap.ClampToEdge);
 		return result;
