@@ -16,6 +16,7 @@
 
 package com.badlogic.gdx.utils;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Files;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.LifecycleListener;
@@ -59,17 +60,20 @@ public class Timer {
 		return scheduleTask(task, delaySeconds, intervalSeconds, FOREVER);
 	}
 
-	/** Schedules a task to occur once after the specified delay and then a number of additional times at the specified interval. */
+	/** Schedules a task to occur once after the specified delay and then a number of additional times at the specified
+	 * interval. */
 	public Task scheduleTask (Task task, float delaySeconds, float intervalSeconds, int repeatCount) {
-		if (task.repeatCount != CANCELLED) throw new IllegalArgumentException("The same task may not be scheduled twice.");
-		task.executeTimeMillis = System.nanoTime() / 1000000 + (long)(delaySeconds * 1000);
-		task.intervalMillis = (long)(intervalSeconds * 1000);
-		task.repeatCount = repeatCount;
+		synchronized (task) {
+			if (task.repeatCount != CANCELLED) throw new IllegalArgumentException("The same task may not be scheduled twice.");
+			task.executeTimeMillis = System.nanoTime() / 1000000 + (long)(delaySeconds * 1000);
+			task.intervalMillis = (long)(intervalSeconds * 1000);
+			task.repeatCount = repeatCount;
+		}
 		synchronized (tasks) {
 			tasks.add(task);
 		}
 		wake();
-		
+
 		return task;
 	}
 
@@ -103,25 +107,24 @@ public class Timer {
 		synchronized (tasks) {
 			for (int i = 0, n = tasks.size; i < n; i++) {
 				Task task = tasks.get(i);
-				if (task.executeTimeMillis > timeMillis) {
-					waitMillis = Math.min(waitMillis, task.executeTimeMillis - timeMillis);
-					continue;
-				}
-				if (task.repeatCount != CANCELLED) {
-					if (task.repeatCount == 0) {
-						// Set cancelled before run so it may be rescheduled in run.
-						task.repeatCount = CANCELLED;
+				synchronized (task) {
+					if (task.executeTimeMillis > timeMillis) {
+						waitMillis = Math.min(waitMillis, task.executeTimeMillis - timeMillis);
+						continue;
 					}
-					Gdx.app.postRunnable(task);
-				}
-				if (task.repeatCount == CANCELLED) {
-					tasks.removeIndex(i);
-					i--;
-					n--;
-				} else {
-					task.executeTimeMillis = timeMillis + task.intervalMillis;
-					waitMillis = Math.min(waitMillis, task.intervalMillis);
-					if (task.repeatCount > 0) task.repeatCount--;
+					if (task.repeatCount != CANCELLED) {
+						if (task.repeatCount == 0) task.repeatCount = CANCELLED;
+						task.app.postRunnable(task);
+					}
+					if (task.repeatCount == CANCELLED) {
+						tasks.removeIndex(i);
+						i--;
+						n--;
+					} else {
+						task.executeTimeMillis = timeMillis + task.intervalMillis;
+						waitMillis = Math.min(waitMillis, task.intervalMillis);
+						if (task.repeatCount > 0) task.repeatCount--;
+					}
 				}
 			}
 		}
@@ -133,7 +136,9 @@ public class Timer {
 		synchronized (tasks) {
 			for (int i = 0, n = tasks.size; i < n; i++) {
 				Task task = tasks.get(i);
-				task.executeTimeMillis += delayMillis;
+				synchronized (task) {
+					task.executeTimeMillis += delayMillis;
+				}
 			}
 		}
 	}
@@ -175,23 +180,34 @@ public class Timer {
 		long executeTimeMillis;
 		long intervalMillis;
 		int repeatCount = CANCELLED;
+		Application app = Gdx.app; // Need to store the app when the task was created for multiple LwjglAWTCanvas.
 
-		/** If this is the last time the task will be ran or the task is first cancelled, it may be scheduled again in this method. */
+		/** If this is the last time the task will be ran or the task is first cancelled, it may be scheduled again in this
+		 * method. */
 		abstract public void run ();
 
 		/** Cancels the task. It will not be executed until it is scheduled again. This method can be called at any time. */
-		public void cancel () {
+		public synchronized void cancel () {
 			executeTimeMillis = 0;
 			repeatCount = CANCELLED;
 		}
 
-		/** Returns true if this task is scheduled to be executed in the future by a timer. */
-		public boolean isScheduled () {
+		/** Returns true if this task is scheduled to be executed in the future by a timer. The execution time may be reached after
+		 * calling this method which may change the scheduled state. To prevent the scheduled state from changing, synchronize on
+		 * this task object, eg:
+		 * 
+		 * <pre>
+		 * synchronized (task) {
+		 * 	if (!task.isScheduled()) { ... }
+		 * }
+		 * </pre>
+		*/
+		public synchronized boolean isScheduled () {
 			return repeatCount != CANCELLED;
 		}
 
 		/** Returns the time when this task will be executed in milliseconds */
-		public long getExecuteTimeMillis () {
+		public synchronized long getExecuteTimeMillis () {
 			return executeTimeMillis;
 		}
 	}

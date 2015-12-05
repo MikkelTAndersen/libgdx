@@ -340,6 +340,7 @@ public class BitmapFont implements Disposable {
 			g.xoffset += Math.round((maxAdvance - g.xadvance) / 2);
 			g.xadvance = maxAdvance;
 			g.kerning = null;
+			g.fixedWidth = true;
 		}
 	}
 
@@ -402,6 +403,7 @@ public class BitmapFont implements Disposable {
 		public int xoffset, yoffset;
 		public int xadvance;
 		public byte[][] kerning;
+		public boolean fixedWidth;
 
 		/** The index to the texture page that holds this glyph. */
 		public int page = 0;
@@ -633,16 +635,16 @@ public class BitmapFont implements Disposable {
 				spaceWidth = spaceGlyph.width;
 
 				Glyph xGlyph = null;
-				for (int i = 0; i < xChars.length; i++) {
-					xGlyph = getGlyph(xChars[i]);
+				for (char xChar : xChars) {
+					xGlyph = getGlyph(xChar);
 					if (xGlyph != null) break;
 				}
 				if (xGlyph == null) xGlyph = getFirstGlyph();
 				xHeight = xGlyph.height - padY;
 
 				Glyph capGlyph = null;
-				for (int i = 0; i < capChars.length; i++) {
-					capGlyph = getGlyph(capChars[i]);
+				for (char capChar : capChars) {
+					capGlyph = getGlyph(capChar);
 					if (capGlyph != null) break;
 				}
 				if (capGlyph == null) {
@@ -784,8 +786,8 @@ public class BitmapFont implements Disposable {
 				if (glyph == null) continue;
 				glyphs.add(glyph);
 
-				if (lastGlyph == null)
-					xAdvances.add(-glyph.xoffset * scaleX - padLeft); // First glyph.
+				if (lastGlyph == null) // First glyph.
+					xAdvances.add(glyph.fixedWidth ? 0 : -glyph.xoffset * scaleX - padLeft);
 				else
 					xAdvances.add((lastGlyph.xadvance + lastGlyph.getKerning(ch)) * scaleX);
 				lastGlyph = glyph;
@@ -793,7 +795,10 @@ public class BitmapFont implements Disposable {
 				// "[[" is an escaped left square bracket, skip second character.
 				if (markupEnabled && ch == '[' && start < end && str.charAt(start) == '[') start++;
 			}
-			if (lastGlyph != null) xAdvances.add((lastGlyph.xoffset + lastGlyph.width) * scaleX - padRight);
+			if (lastGlyph != null) {
+				int lastGlyphWidth = lastGlyph.fixedWidth ? lastGlyph.xadvance : lastGlyph.xoffset + lastGlyph.width;
+				xAdvances.add(lastGlyphWidth * scaleX - padRight);
+			}
 		}
 
 		/** Returns the first valid glyph index to use to wrap to the next line, starting at the specified start index and
