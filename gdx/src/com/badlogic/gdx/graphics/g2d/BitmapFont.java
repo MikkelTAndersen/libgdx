@@ -40,8 +40,7 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.StreamUtils;
 
 /** Renders bitmap fonts. The font consists of 2 files: an image file or {@link TextureRegion} containing the glyphs and a file in
- * the AngleCode BMFont text format that describes where each glyph is on the image. Currently only a single image of glyphs is
- * supported.
+ * the AngleCode BMFont text format that describes where each glyph is on the image.
  * <p>
  * Text is drawn using a {@link Batch}. Text can be cached in a {@link BitmapFontCache} for faster rendering of static text, which
  * saves needing to compute the location of each glyph each frame.
@@ -558,7 +557,7 @@ public class BitmapFont implements Disposable {
 					tokens.nextToken();
 					tokens.nextToken();
 					int ch = Integer.parseInt(tokens.nextToken());
-					if (ch == -1)
+					if (ch <= 0)
 						missingGlyph = glyph;
 					else if (ch <= Character.MAX_VALUE)
 						setGlyph(ch, glyph);
@@ -781,6 +780,10 @@ public class BitmapFont implements Disposable {
 			Glyph missingGlyph = this.missingGlyph;
 			Array<Glyph> glyphs = run.glyphs;
 			FloatArray xAdvances = run.xAdvances;
+
+			// Guess at number of glyphs needed.
+			glyphs.ensureCapacity(end - start);
+			xAdvances.ensureCapacity(end - start + 1);
 
 			Glyph lastGlyph = null;
 			while (start < end) {

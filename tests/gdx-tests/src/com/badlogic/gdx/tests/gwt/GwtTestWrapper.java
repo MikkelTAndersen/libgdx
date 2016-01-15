@@ -69,6 +69,7 @@ import com.badlogic.gdx.tests.ImageScaleTest;
 import com.badlogic.gdx.tests.ImageTest;
 import com.badlogic.gdx.tests.IndexBufferObjectShaderTest;
 import com.badlogic.gdx.tests.IntegerBitmapFontTest;
+import com.badlogic.gdx.tests.InterpolationTest;
 import com.badlogic.gdx.tests.InverseKinematicsTest;
 import com.badlogic.gdx.tests.IsometricTileTest;
 import com.badlogic.gdx.tests.KinematicBodyTest;
@@ -236,6 +237,24 @@ public class GwtTestWrapper extends GdxTest {
 			return input.getAccelerometerZ();
 		}
 
+		@Override
+		public float getGyroscopeX () {
+			// TODO Auto-generated method stub
+			return input.getGyroscopeX();
+		}
+
+		@Override
+		public float getGyroscopeY () {
+			// TODO Auto-generated method stub
+			return input.getGyroscopeY();
+		}
+
+		@Override
+		public float getGyroscopeZ () {
+			// TODO Auto-generated method stub
+			return input.getGyroscopeZ();
+		}
+		
 		@Override
 		public int getX () {
 			return input.getX();
@@ -556,6 +575,10 @@ public class GwtTestWrapper extends GdxTest {
 		}, new Instancer() {
 			public GdxTest instance () {
 				return new IntegerBitmapFontTest();
+			}
+		}, new Instancer() {
+			public GdxTest instance () {
+				return new InterpolationTest();
 			}
 		}, new Instancer() {
 			public GdxTest instance () {

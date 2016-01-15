@@ -245,6 +245,7 @@ public class Pixmap implements Disposable {
 
 	/** Fills the complete bitmap with the currently set color. */
 	public void fill () {
+		context.clearRect(0, 0, getWidth(), getHeight());
 		rectangle(0, 0, getWidth(), getHeight(), DrawType.FILL);
 	}
 
@@ -431,6 +432,7 @@ public class Pixmap implements Disposable {
 		context.lineTo(x2, y2);
 		fillOrStrokePath(drawType);
 		context.closePath();
+		pixels = null;
 	}
 
 	private void rectangle(int x, int y, int width, int height, DrawType drawType) {

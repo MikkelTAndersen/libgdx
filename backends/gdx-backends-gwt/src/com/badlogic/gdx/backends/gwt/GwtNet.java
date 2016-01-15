@@ -220,9 +220,10 @@ public class GwtNet implements Net {
 
 			builder.setTimeoutMillis(httpRequest.getTimeOut());
 
+            builder.setIncludeCredentials(httpRequest.getIncludeCredentials());
+
 			try {
 				Request request = builder.sendRequest(valueInBody ? value : null, new RequestCallback() {
-
 					@Override
 					public void onResponseReceived (Request request, Response response) {
 						httpResultListener.handleHttpResponse(new HttpClientResponse(response));
