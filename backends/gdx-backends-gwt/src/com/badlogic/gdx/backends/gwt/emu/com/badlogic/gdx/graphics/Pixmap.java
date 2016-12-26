@@ -125,7 +125,9 @@ public class Pixmap implements Disposable {
 		ImageElement img = Preloader.images.get(base64);
 		if (img == null)
 			throw new GdxRuntimeException("Couldn't load image '" + base64 + "', file does not exist in Preloader images");
-		create(img.getWidth(), img.getHeight(), Format.RGBA8888);
+		this.width = img.getWidth();
+		this.height = img.getHeight();
+		create();
 		context.setGlobalCompositeOperation(Composite.COPY);
 		context.drawImage(img, 0, 0);
 		context.setGlobalCompositeOperation(getComposite());
