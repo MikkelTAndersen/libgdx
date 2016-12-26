@@ -1,12 +1,12 @@
 /*******************************************************************************
  * Copyright 2011 See AUTHORS file.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,12 +25,15 @@ import java.util.regex.Pattern;
 /** Builder style API for emitting JSON.
  * @author Nathan Sweet */
 public class JsonWriter extends Writer {
+	private static final String TRUE = "true";
+	private static final String FALSE = "false";
 	final Writer writer;
 	private final Array<JsonObject> stack = new Array();
 	private JsonObject current;
 	private boolean named;
 	private OutputType outputType = OutputType.json;
 	private boolean quoteLongValues = false;
+	private static final StringBuilder sb = new StringBuilder();
 
 	public JsonWriter (Writer writer) {
 		this.writer = writer;
@@ -176,7 +179,8 @@ public class JsonWriter extends Writer {
 		 * <li>Newlines are treated as commas, making commas optional in many cases.
 		 * <li>C style comments may be used: <code>//...</code> or <code>/*...*<b></b>/</code>
 		 * </ul> */
-		minimal;
+		minimal,
+		highPerformance;
 
 		static private Pattern javascriptPattern = Pattern.compile("^[a-zA-Z_$][a-zA-Z_$0-9]*$");
 		static private Pattern minimalNamePattern = Pattern.compile("^[^\":,}/ ][^:]*$");
@@ -184,30 +188,76 @@ public class JsonWriter extends Writer {
 
 		public String quoteValue (Object value) {
 			if (value == null) return "null";
+
+			if (value instanceof Boolean) return (value == Boolean.TRUE ?  TRUE: FALSE);
+			if (value instanceof Float) return floatToString((Float)value);
+			if (value instanceof Number) return value.toString();
 			String string = value.toString();
-			if (value instanceof Number || value instanceof Boolean) return string;
-			StringBuilder buffer = new StringBuilder(string);
-			buffer.replace('\\', "\\\\").replace('\r', "\\r").replace('\n', "\\n").replace('\t', "\\t");
-			if (this == OutputType.minimal && !string.equals("true") && !string.equals("false") && !string.equals("null")
-				&& !string.contains("//") && !string.contains("/*")) {
-				int length = buffer.length();
-				if (length > 0 && buffer.charAt(length - 1) != ' ' && minimalValuePattern.matcher(buffer).matches())
-					return buffer.toString();
+			if(this == OutputType.highPerformance) {
+				return '"' + string + '"';
+			} else {
+				StringBuilder buffer = new StringBuilder(string);
+				buffer.replace('\\', "\\\\").replace('\r', "\\r").replace('\n', "\\n").replace('\t', "\\t");
+				if (this == OutputType.minimal && !string.equals("true") && !string.equals("false") && !string.equals("null")
+					&& !string.contains("//") && !string.contains("/*")) {
+					int length = buffer.length();
+					if (length > 0 && buffer.charAt(length - 1) != ' ' && minimalValuePattern.matcher(buffer).matches())
+						return buffer.toString();
+				}
+				return '"' + buffer.replace('"', "\\\"").toString() + '"';
 			}
-			return '"' + buffer.replace('"', "\\\"").toString() + '"';
+		}
+
+		private static String floatToString(float val) {
+			sb.setLength(0);
+			appendTo6(sb, val);
+			return sb.toString();
+		}
+
+		public static void appendTo6(StringBuilder builder, double d) {
+			if (d < 0) {
+				builder.append('-');
+				d = -d;
+			}
+			if (d * 1e6 + 0.5 > Long.MAX_VALUE) {
+				// TODO write a fall back.
+				throw new IllegalArgumentException("number too large");
+			}
+			long scaled = (long) (d * 1e6 + 0.5);
+			long factor = 1000000;
+			int scale = 7;
+			long scaled2 = scaled / 10;
+			while (factor <= scaled2) {
+				factor *= 10;
+				scale++;
+			}
+			while (scale > 0) {
+				if (scale == 6)
+					builder.append('.');
+				long c = scaled / factor % 10;
+				factor /= 10;
+				builder.append((char) ('0' + c));
+				scale--;
+			}
 		}
 
 		public String quoteName (String value) {
-			StringBuilder buffer = new StringBuilder(value);
-			buffer.replace('\\', "\\\\").replace('\r', "\\r").replace('\n', "\\n").replace('\t', "\\t");
-			switch (this) {
-			case minimal:
-				if (!value.contains("//") && !value.contains("/*") && minimalNamePattern.matcher(buffer).matches())
-					return buffer.toString();
-			case javascript:
-				if (javascriptPattern.matcher(buffer).matches()) return buffer.toString();
+			if(this == OutputType.highPerformance) {
+				return '"' +value + '"';
+			} else {
+
+				StringBuilder buffer = new StringBuilder(value);
+
+				buffer.replace('\\', "\\\\").replace('\r', "\\r").replace('\n', "\\n").replace('\t', "\\t");
+				switch (this) {
+				case minimal:
+					if (!value.contains("//") && !value.contains("/*") && minimalNamePattern.matcher(buffer).matches())
+						return buffer.toString();
+				case javascript:
+					if (javascriptPattern.matcher(buffer).matches()) return buffer.toString();
+				}
+				return '"' + buffer.replace('"', "\\\"").toString() + '"';
 			}
-			return '"' + buffer.replace('"', "\\\"").toString() + '"';
 		}
 	}
 }
