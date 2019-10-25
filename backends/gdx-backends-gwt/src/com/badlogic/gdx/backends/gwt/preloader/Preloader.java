@@ -45,8 +45,9 @@ public class Preloader {
 	}
 
 	public ObjectMap<String, Void> directories = new ObjectMap<String, Void>();
-	public ObjectMap<String, ImageElement> images = new ObjectMap<String, ImageElement>();
+	public static final ObjectMap<String, ImageElement> images = new ObjectMap<String, ImageElement>();
 	public ObjectMap<String, Blob> audio = new ObjectMap<String, Blob>();
+
 	public ObjectMap<String, String> texts = new ObjectMap<String, String>();
 	public ObjectMap<String, Blob> binaries = new ObjectMap<String, Blob>();
 
