@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Net;
 import com.badlogic.gdx.backends.gwt.preloader.Preloader;
 import com.badlogic.gdx.Net.Protocol;
@@ -42,6 +43,7 @@ import com.google.gwt.event.dom.client.ErrorEvent;
 import com.google.gwt.event.dom.client.ErrorHandler;
 import com.google.gwt.event.dom.client.LoadEvent;
 import com.google.gwt.event.dom.client.LoadHandler;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.http.client.Header;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
@@ -57,6 +59,7 @@ public class GwtNet implements Net {
 	ObjectMap<HttpRequest, Request> requests;
 	ObjectMap<HttpRequest, HttpResponseListener> listeners;
 	Preloader preloader;
+	GwtApplicationConfiguration config;
 
 	private final class HttpClientResponse implements HttpResponse {
 
@@ -70,7 +73,8 @@ public class GwtNet implements Net {
 
 		@Override
 		public byte[] getResult () {
-			return null;
+			throw new GdxRuntimeException("HttpResponse.getResult() is not available on GWT. " +
+					"Use getResultAsString() if possible, or make use of AssetDownloader class.");
 		}
 
 		@Override
@@ -80,7 +84,8 @@ public class GwtNet implements Net {
 
 		@Override
 		public InputStream getResultAsStream () {
-			return null;
+			throw new GdxRuntimeException("HttpResponse.getResultAsStream() is not available on GWT. " +
+					"Use getResultAsString() if possible, or make use of AssetDownloader class.");
 		}
 
 		@Override
@@ -113,8 +118,9 @@ public class GwtNet implements Net {
 		}
 	}
 
-	public GwtNet (Preloader preloader) {
+	public GwtNet (GwtApplicationConfiguration config, Preloader preloader) {
 		this.preloader = preloader;
+		this.config = config;
 		requests = new ObjectMap<HttpRequest, Request>();
 		listeners = new ObjectMap<HttpRequest, HttpResponseListener>();
 	}
@@ -276,7 +282,12 @@ public class GwtNet implements Net {
 
 	@Override
 	public boolean openURI (String URI) {
-		Window.open(URI, "_blank", null);
+		if (config.openURLInNewWindow) {
+			Window.open(URI, "_blank", null);
+		} else {
+			Window.Location.assign(URI);
+		}
 		return true;
 	}
+
 }

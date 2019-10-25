@@ -72,6 +72,12 @@ public class ActorGestureListener implements EventListener {
 				return true;
 			}
 
+			public boolean panStop (float stageX, float stageY, int pointer, int button) {
+				actor.stageToLocalCoordinates(tmpCoords.set(stageX, stageY));
+				ActorGestureListener.this.panStop(event, tmpCoords.x, tmpCoords.y, pointer, button);
+				return true;
+			}
+
 			public boolean zoom (float initialDistance, float distance) {
 				ActorGestureListener.this.zoom(event, initialDistance, distance);
 				return true;
@@ -107,7 +113,10 @@ public class ActorGestureListener implements EventListener {
 			touchDown(event, tmpCoords.x, tmpCoords.y, event.getPointer(), event.getButton());
 			return true;
 		case touchUp:
-			if (event.isTouchFocusCancel()) return false;
+			if (event.isTouchFocusCancel()) {
+				detector.reset();
+				return false;
+			}
 			this.event = event;
 			actor = event.getListenerActor();
 			detector.touchUp(event.getStageX(), event.getStageY(), event.getPointer(), event.getButton());
@@ -132,8 +141,8 @@ public class ActorGestureListener implements EventListener {
 	public void tap (InputEvent event, float x, float y, int count, int button) {
 	}
 
-	/** If true is returned, additional gestures will not be triggered. No event is provided because this event is triggered by time
-	 * passing, not by an InputEvent. */
+	/** If true is returned, additional gestures will not be triggered. No event is provided because this event is triggered by
+	 * time passing, not by an InputEvent. */
 	public boolean longPress (Actor actor, float x, float y) {
 		return false;
 	}
@@ -143,6 +152,9 @@ public class ActorGestureListener implements EventListener {
 
 	/** The delta is the difference in stage coordinates since the last pan. */
 	public void pan (InputEvent event, float x, float y, float deltaX, float deltaY) {
+	}
+
+	public void panStop (InputEvent event, float x, float y, int pointer, int button) {
 	}
 
 	public void zoom (InputEvent event, float initialDistance, float distance) {

@@ -51,7 +51,6 @@ public abstract class OpenALMusic implements Music {
 	private float renderedSeconds, maxSecondsPerBuffer;
 
 	protected final FileHandle file;
-	protected int bufferOverhead = 0;
 
 	private OnCompletionListener onCompletionListener;
 
@@ -64,7 +63,7 @@ public abstract class OpenALMusic implements Music {
 	protected void setup (int channels, int sampleRate) {
 		this.format = channels > 1 ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16;
 		this.sampleRate = sampleRate;
-		maxSecondsPerBuffer = (float)(bufferSize - bufferOverhead) / (bytesPerSample * channels * sampleRate);
+		maxSecondsPerBuffer = (float)bufferSize / (bytesPerSample * channels * sampleRate);
 	}
 
 	public void play () {
@@ -230,7 +229,7 @@ public abstract class OpenALMusic implements Music {
 		while (buffers-- > 0) {
 			int bufferID = alSourceUnqueueBuffers(sourceID);
 			if (bufferID == AL_INVALID_VALUE) break;
-			renderedSeconds = renderedSecondsQueue.pop();
+			if (renderedSecondsQueue.size > 0) renderedSeconds = renderedSecondsQueue.pop();
 			if (end) continue;
 			if (fill(bufferID))
 				alSourceQueueBuffers(sourceID, bufferID);

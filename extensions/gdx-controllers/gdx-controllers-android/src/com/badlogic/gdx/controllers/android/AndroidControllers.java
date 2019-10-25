@@ -191,6 +191,9 @@ public class AndroidControllers implements LifecycleListener, ControllerManager,
 
 	@Override
 	public boolean onKey (View view, int keyCode, KeyEvent keyEvent) {
+		if (!keyEvent.isGamepadButton(keyCode)) {
+			return false;
+		}
 		AndroidController controller = controllerMap.get(keyEvent.getDeviceId());
 		if(controller != null) {
 			if(controller.getButton(keyCode) && keyEvent.getAction() == KeyEvent.ACTION_DOWN) {
@@ -274,22 +277,29 @@ public class AndroidControllers implements LifecycleListener, ControllerManager,
 	}
 	
 	protected void addController(int deviceId, boolean sendEvent) {
-		InputDevice device = InputDevice.getDevice(deviceId);
-		if(!isController(device)) return;
-		String name = device.getName();
-		AndroidController controller = new AndroidController(deviceId, name);
-		controllerMap.put(deviceId, controller);
-		if(sendEvent) {
-			synchronized(eventQueue) {
-				AndroidControllerEvent event = eventPool.obtain();
-				event.type = AndroidControllerEvent.CONNECTED;
-				event.controller = controller;
-				eventQueue.add(event);
+		try {
+			InputDevice device = InputDevice.getDevice(deviceId);
+			if (!isController(device)) return;
+			String name = device.getName();
+			AndroidController controller = new AndroidController(deviceId, name);
+			controllerMap.put(deviceId, controller);
+			if (sendEvent) {
+				synchronized (eventQueue) {
+					AndroidControllerEvent event = eventPool.obtain();
+					event.type = AndroidControllerEvent.CONNECTED;
+					event.controller = controller;
+					eventQueue.add(event);
+				}
+			} else {
+				controllers.add(controller);
 			}
-		} else {
-			controllers.add(controller);
+			Gdx.app.log(TAG, "added controller '" + name + "'");
+		} catch (RuntimeException e) {
+			// this exception is sometimes thrown by getDevice().
+			// we can't use this device anyway, so ignore it and move on
+			Gdx.app.error(TAG, "Could not get information about " + deviceId +
+							", ignoring the device.", e);
 		}
-		Gdx.app.log(TAG, "added controller '" + name + "'");
 	}
 	
 	protected void removeController(int deviceId) {
@@ -306,7 +316,9 @@ public class AndroidControllers implements LifecycleListener, ControllerManager,
 	}
 	
 	private boolean isController(InputDevice device) {
-		return (device.getSources() & InputDevice.SOURCE_JOYSTICK) != 0;
+		return ((device.getSources() & InputDevice.SOURCE_CLASS_JOYSTICK) == InputDevice.SOURCE_CLASS_JOYSTICK)
+				&& (((device.getSources() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
+				|| (device.getKeyboardType() != InputDevice.KEYBOARD_TYPE_ALPHABETIC));
 	}
 
 	@Override

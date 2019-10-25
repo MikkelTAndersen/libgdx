@@ -145,8 +145,10 @@ public class SelectBox<T> extends Widget implements Disableable {
 		if (newItems == null) throw new IllegalArgumentException("newItems cannot be null.");
 		float oldPrefWidth = getPrefWidth();
 
-		items.clear();
-		items.addAll(newItems);
+		if (newItems != items) {
+			items.clear();
+			items.addAll(newItems);
+		}
 		selection.validate();
 		selectBoxList.list.setItems(items);
 
@@ -166,7 +168,6 @@ public class SelectBox<T> extends Widget implements Disableable {
 		return items;
 	}
 
-	@Override
 	public void layout () {
 		Drawable bg = style.background;
 		BitmapFont font = style.font;
@@ -187,20 +188,20 @@ public class SelectBox<T> extends Widget implements Disableable {
 		layoutPool.free(layout);
 
 		prefWidth = maxItemWidth;
-		if (bg != null) prefWidth += bg.getLeftWidth() + bg.getRightWidth();
+		if (bg != null) prefWidth = Math.max(prefWidth + bg.getLeftWidth() + bg.getRightWidth(), bg.getMinWidth());
 
 		ListStyle listStyle = style.listStyle;
 		ScrollPaneStyle scrollStyle = style.scrollStyle;
 		float listWidth = maxItemWidth + listStyle.selection.getLeftWidth() + listStyle.selection.getRightWidth();
-		if (scrollStyle.background != null)
-			listWidth += scrollStyle.background.getLeftWidth() + scrollStyle.background.getRightWidth();
-		if (selectBoxList == null || !selectBoxList.disableY)
+		bg = scrollStyle.background;
+		if (bg != null) listWidth = Math.max(listWidth + bg.getLeftWidth() + bg.getRightWidth(), bg.getMinWidth());
+		if (selectBoxList == null || !selectBoxList.disableY) {
 			listWidth += Math.max(style.scrollStyle.vScroll != null ? style.scrollStyle.vScroll.getMinWidth() : 0,
 				style.scrollStyle.vScrollKnob != null ? style.scrollStyle.vScrollKnob.getMinWidth() : 0);
+		}
 		prefWidth = Math.max(prefWidth, listWidth);
 	}
 
-	@Override
 	public void draw (Batch batch, float parentAlpha) {
 		validate();
 
@@ -309,7 +310,7 @@ public class SelectBox<T> extends Widget implements Disableable {
 
 	public void showList () {
 		if (items.size == 0) return;
-		selectBoxList.show(getStage());
+		if (getStage() != null) selectBoxList.show(getStage());
 	}
 
 	public void hideList () {
@@ -360,12 +361,12 @@ public class SelectBox<T> extends Widget implements Disableable {
 			setScrollingDisabled(true, false);
 
 			list = new List<T>(selectBox.style.listStyle) {
-				@Override
-				protected String toString (T obj) {
+				public String toString (T obj) {
 					return selectBox.toString(obj);
 				}
 			};
 			list.setTouchable(Touchable.disabled);
+			list.setTypeToSelect(true);
 			setActor(list);
 
 			list.addListener(new ClickListener() {
@@ -375,7 +376,8 @@ public class SelectBox<T> extends Widget implements Disableable {
 				}
 
 				public boolean mouseMoved (InputEvent event, float x, float y) {
-					list.setSelectedIndex(Math.min(selectBox.items.size - 1, (int)((list.getHeight() - y) / list.getItemHeight())));
+					int index = list.getItemIndexAt(y);
+					if (index != -1) list.setSelectedIndex(index);
 					return true;
 				}
 			});
@@ -396,7 +398,15 @@ public class SelectBox<T> extends Widget implements Disableable {
 				}
 
 				public boolean keyDown (InputEvent event, int keycode) {
-					if (keycode == Keys.ESCAPE) hide();
+					switch (keycode) {
+					case Keys.ENTER:
+						selectBox.selection.choose(list.getSelected());
+						// Fall thru.
+					case Keys.ESCAPE:
+						hide();
+						event.stop();
+						return true;
+					}
 					return false;
 				}
 			};
@@ -405,9 +415,9 @@ public class SelectBox<T> extends Widget implements Disableable {
 		public void show (Stage stage) {
 			if (list.isTouchable()) return;
 
-			stage.removeCaptureListener(hideListener);
-			stage.addCaptureListener(hideListener);
 			stage.addActor(this);
+			stage.addCaptureListener(hideListener);
+			stage.addListener(list.getKeyListener());
 
 			selectBox.localToStageCoordinates(screenPosition.set(0, 0));
 
@@ -463,6 +473,7 @@ public class SelectBox<T> extends Widget implements Disableable {
 			Stage stage = getStage();
 			if (stage != null) {
 				stage.removeCaptureListener(hideListener);
+				stage.removeListener(list.getKeyListener());
 				if (previousScrollFocus != null && previousScrollFocus.getStage() == null) previousScrollFocus = null;
 				Actor actor = stage.getScrollFocus();
 				if (actor == null || isAscendantOf(actor)) stage.setScrollFocus(previousScrollFocus);
@@ -481,6 +492,15 @@ public class SelectBox<T> extends Widget implements Disableable {
 		public void act (float delta) {
 			super.act(delta);
 			toFront();
+		}
+
+		protected void setStage (Stage stage) {
+			Stage oldStage = getStage();
+			if (oldStage != null) {
+				oldStage.removeCaptureListener(hideListener);
+				oldStage.removeListener(list.getKeyListener());
+			}
+			super.setStage(stage);
 		}
 	}
 
